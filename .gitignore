@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Data outputs
+*.csv
+*.parquet
+*.db
+stream/
+logs/
+
+# OS
+.DS_Store
