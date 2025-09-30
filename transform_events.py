@@ -8,11 +8,10 @@ def create_aggregates_table(conn):
     conn.execute("""
     CREATE TABLE IF NOT EXISTS aggregates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER,
+        product_id TEXT UNIQUE,
         product_name TEXT,
         total_sales INTEGER,
-        total_revenue REAL,
-        UNIQUE(product_id)
+        total_revenue REAL
     )
     """)
     conn.commit()
@@ -20,7 +19,6 @@ def create_aggregates_table(conn):
 def compute_and_save_aggregates(conn):
     cur = conn.cursor()
     
-    # Aggregate total sales and revenue per product
     cur.execute("""
     SELECT product_id, product_name, COUNT(*) as total_sales, SUM(price) as total_revenue
     FROM events
@@ -42,7 +40,9 @@ def compute_and_save_aggregates(conn):
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Aggregates updated for {len(rows)} products.")
 
 def main():
-    conn = sqlite3.connect("ecommerce.db")
+    # Allow concurrent reading while consumer writes
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
     create_aggregates_table(conn)
     
     try:

@@ -1,106 +1,69 @@
-#!/usr/bin/env python3
-# consumer/consumer_db.py
 import sqlite3
 import json
 import time
-import os
-import signal
-import logging
-import sys
+from pathlib import Path
 
-DB_PATH = os.getenv("DB_PATH", "ecommerce.db")
-EVENT_FILE = os.getenv("EVENT_FILE", "events.jsonl")
-SLEEP_SECS = 0.5
+DB_FILE = "ecommerce.db"
+EVENT_FILE = "events.jsonl"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("consumer_db")
+# Ensure DB connection is thread-safe
+conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+cur = conn.cursor()
 
-stop_requested = False
-conn = None
-
-def create_table_if_not_exists():
-    global conn
-    conn = sqlite3.connect(DB_PATH, timeout=10, check_same_thread=False)
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_type TEXT NOT NULL,
-        user_id TEXT,
-        product_id TEXT,
-        product_name TEXT,
-        price REAL,
-        timestamp TEXT,
-        raw TEXT
-    )
-    """)
-    conn.commit()
+# Make sure the events table exists
+cur.execute("""
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT,
+    user_id TEXT,
+    product_id TEXT,
+    product_name TEXT,
+    price REAL,
+    timestamp TEXT,
+    raw TEXT
+)
+""")
+conn.commit()
 
 def save_event(event):
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO events (event_type, user_id, product_id, product_name, price, timestamp, raw)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        event.get("event_type"),
-        event.get("user_id"),
-        event.get("product_id"),
-        event.get("product_name"),
-        float(event["price"]) if event.get("price") is not None else None,
-        event.get("timestamp"),
-        json.dumps(event)
-    ))
-    conn.commit()
-
-def handle_signal(signum, frame):
-    global stop_requested
-    logger.info("Received stop signal (%s). Shutting down...", signum)
-    stop_requested = True
+    try:
+        cur.execute("""
+            INSERT INTO events (event_type, user_id, product_id, product_name, price, timestamp, raw)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            event["event_type"],
+            event["user_id"],
+            event["product_id"],
+            event["product_name"],
+            event["price"],
+            event["timestamp"],
+            json.dumps(event)
+        ))
+        conn.commit()  # Important: commit after every insert
+    except Exception as e:
+        print(f"ERROR Failed to save event: {e}")
 
 def tail_and_consume():
-    # Wait for file if it doesn't exist yet
-    if not os.path.exists(EVENT_FILE):
-        logger.info("%s not found — waiting for producer to create it...", EVENT_FILE)
-        while not os.path.exists(EVENT_FILE) and not stop_requested:
-            time.sleep(0.2)
-
-    with open(EVENT_FILE, "r", encoding="utf-8") as f:
-        f.seek(0, 2)  # move to EOF
-        logger.info("Tailing %s ...", EVENT_FILE)
-        while not stop_requested:
+    print(f"INFO Tailing {EVENT_FILE} ...")
+    path = Path(EVENT_FILE)
+    path.touch(exist_ok=True)
+    with path.open("r") as f:
+        f.seek(0, 2)  # Go to end of file
+        while True:
             line = f.readline()
             if not line:
-                time.sleep(SLEEP_SECS)
-                continue
-            line = line.strip()
-            if not line:
+                time.sleep(0.5)
                 continue
             try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                logger.warning("Skipped invalid JSON line: %s", line[:200])
-                continue
-
-            try:
+                event = json.loads(line.strip())
                 save_event(event)
-                logger.info("Saved event: %s | user=%s product=%s",
-                            event.get("event_type"), event.get("user_id"), event.get("product_name"))
             except Exception as e:
-                logger.exception("Failed to save event: %s", e)
-
-    logger.info("Consumer loop exiting.")
-
-def main():
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
-
-    create_table_if_not_exists()
-    try:
-        tail_and_consume()
-    finally:
-        if conn:
-            conn.close()
-            logger.info("DB connection closed.")
+                print(f"ERROR Failed to process line: {e}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        tail_and_consume()
+    except KeyboardInterrupt:
+        print("Stopping consumer...")
+    finally:
+        conn.close()

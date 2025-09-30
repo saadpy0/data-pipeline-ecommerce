@@ -9,6 +9,8 @@ __pycache__/
 *.parquet
 *.db
 *.jsonl
+*.db-shm
+*.db-wal
 stream/
 logs/
 
