@@ -8,8 +8,7 @@ __pycache__/
 *.csv
 *.parquet
 *.db
-ecommerce.db
-events.jsonl
+*.jsonl
 stream/
 logs/
 

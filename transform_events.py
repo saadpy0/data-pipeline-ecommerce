@@ -1,6 +1,8 @@
 import sqlite3
+import time
 
 DB_FILE = "ecommerce.db"
+AGGREGATION_INTERVAL = 15  # seconds
 
 def create_aggregates_table(conn):
     conn.execute("""
@@ -37,13 +39,20 @@ def compute_and_save_aggregates(conn):
         """, (product_id, product_name, total_sales, total_revenue))
     
     conn.commit()
-    print(f"Aggregates updated for {len(rows)} products.")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Aggregates updated for {len(rows)} products.")
 
 def main():
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect("ecommerce.db")
     create_aggregates_table(conn)
-    compute_and_save_aggregates(conn)
-    conn.close()
+    
+    try:
+        while True:
+            compute_and_save_aggregates(conn)
+            time.sleep(AGGREGATION_INTERVAL)
+    except KeyboardInterrupt:
+        print("Stopping aggregate updater...")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     main()
