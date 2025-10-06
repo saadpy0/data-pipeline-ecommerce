@@ -1,9 +1,16 @@
 import sqlite3
 import json
 import time
+import logging
 from pathlib import Path
 from utils.logger import get_logger
-logger = get_logger(__name__)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 DB_FILE = "ecommerce.db"
@@ -29,19 +36,11 @@ CREATE TABLE IF NOT EXISTS events (
 conn.commit()
 
 def validate_event(event):
-    required_fields = ["event_type", "user_id", "product_id", "product_name", "price", "timestamp"]
-    
-    # Check all required fields are present
-    for field in required_fields:
-        if field not in event:
-            logger.warning(f"Skipping event — missing field: {field}. Event: {event}")
+    required_keys = ["event_type", "user_id", "product_id", "product_name", "price", "timestamp"]
+    for key in required_keys:
+        if key not in event:
+            logger.warning(f"Invalid event missing '{key}': {event}")
             return False
-    
-    # Check data types
-    if not isinstance(event["price"], (int, float)):
-        logger.warning(f"Skipping event — invalid price type: {event['price']}")
-        return False
-
     return True
 
 def save_event(event):
@@ -78,9 +77,9 @@ def tail_and_consume():
                 event = json.loads(line.strip())
                 if validate_event(event):
                     save_event(event)
-                    logger.info(f"Processed event: {event['event_type']} for user {event['user_id']}")
+                    logger.info(f"Consumed event: {event}")
                 else:
-                    logger.warning(f"Invalid event skipped: {event}")
+                    logger.warning(f"Skipped invalid event: {event}")
             except Exception as e:
                 logger.exception("Failed to process line")
 
