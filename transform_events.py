@@ -1,8 +1,16 @@
 import sqlite3
 import time
+import logging
 
 DB_FILE = "ecommerce.db"
 AGGREGATION_INTERVAL = 15  # seconds
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 def create_aggregates_table(conn):
     conn.execute("""
@@ -37,7 +45,7 @@ def compute_and_save_aggregates(conn):
         """, (product_id, product_name, total_sales, total_revenue))
     
     conn.commit()
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Aggregates updated for {len(rows)} products.")
+    logger.info(f"Aggregates updated for {len(rows)} products.")
 
 def main():
     # Allow concurrent reading while consumer writes
@@ -50,7 +58,7 @@ def main():
             compute_and_save_aggregates(conn)
             time.sleep(AGGREGATION_INTERVAL)
     except KeyboardInterrupt:
-        print("Stopping aggregate updater...")
+        logger.info("Stopping aggregate updater...")
     finally:
         conn.close()
 
