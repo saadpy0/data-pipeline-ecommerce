@@ -2,6 +2,9 @@ import sqlite3
 import json
 import time
 from pathlib import Path
+from utils.logger import get_logger
+logger = get_logger(__name__)
+
 
 DB_FILE = "ecommerce.db"
 EVENT_FILE = "events.jsonl"
@@ -40,11 +43,12 @@ def save_event(event):
             json.dumps(event)
         ))
         conn.commit()  # Important: commit after every insert
+        logger.debug(f"Saved event to database: {event['event_type']}")
     except Exception as e:
-        print(f"ERROR Failed to save event: {e}")
+        logger.exception("Failed to save event")
 
 def tail_and_consume():
-    print(f"INFO Tailing {EVENT_FILE} ...")
+    logger.info("Tailing events.jsonl ...")
     path = Path(EVENT_FILE)
     path.touch(exist_ok=True)
     with path.open("r") as f:
@@ -57,13 +61,14 @@ def tail_and_consume():
             try:
                 event = json.loads(line.strip())
                 save_event(event)
+                logger.info(f"Processed event: {event['event_type']} for user {event['user_id']}")
             except Exception as e:
-                print(f"ERROR Failed to process line: {e}")
+                logger.exception("Failed to process line")
 
 if __name__ == "__main__":
     try:
         tail_and_consume()
     except KeyboardInterrupt:
-        print("Stopping consumer...")
+        logger.info("Stopping consumer...")
     finally:
         conn.close()

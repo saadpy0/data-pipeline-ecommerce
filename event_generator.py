@@ -2,6 +2,9 @@ import json
 import random
 import time
 from datetime import datetime
+from utils.logger import get_logger
+logger = get_logger(__name__)
+
 
 # Sample data for simulation
 USERS = [f"user_{i}" for i in range(1, 6)]
@@ -40,10 +43,10 @@ def run_event_stream(output_file="events.jsonl", delay=1):
                 event = generate_event()
                 f.write(json.dumps(event) + "\n")
                 f.flush()  # force write immediately
-                print("Generated:", event)
+                logger.info(f"Generated event: {event}")
                 time.sleep(delay)
         except KeyboardInterrupt:
-            print("\nStopped event generation.")
+            logger.info("Stopped event generation.")
 
 
 if __name__ == "__main__":
