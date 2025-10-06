@@ -28,6 +28,22 @@ CREATE TABLE IF NOT EXISTS events (
 """)
 conn.commit()
 
+def validate_event(event):
+    required_fields = ["event_type", "user_id", "product_id", "product_name", "price", "timestamp"]
+    
+    # Check all required fields are present
+    for field in required_fields:
+        if field not in event:
+            logger.warning(f"Skipping event — missing field: {field}. Event: {event}")
+            return False
+    
+    # Check data types
+    if not isinstance(event["price"], (int, float)):
+        logger.warning(f"Skipping event — invalid price type: {event['price']}")
+        return False
+
+    return True
+
 def save_event(event):
     try:
         cur.execute("""
@@ -60,8 +76,11 @@ def tail_and_consume():
                 continue
             try:
                 event = json.loads(line.strip())
-                save_event(event)
-                logger.info(f"Processed event: {event['event_type']} for user {event['user_id']}")
+                if validate_event(event):
+                    save_event(event)
+                    logger.info(f"Processed event: {event['event_type']} for user {event['user_id']}")
+                else:
+                    logger.warning(f"Invalid event skipped: {event}")
             except Exception as e:
                 logger.exception("Failed to process line")
 
