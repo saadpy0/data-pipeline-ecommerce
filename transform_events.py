@@ -1,6 +1,7 @@
 import sqlite3
 import time
 import logging
+import argparse
 
 DB_FILE = "ecommerce.db"
 AGGREGATION_INTERVAL = 15  # seconds
@@ -24,9 +25,10 @@ def create_aggregates_table(conn):
     """)
     conn.commit()
 
-def compute_and_save_aggregates(conn):
+def update_aggregates(conn):
     cur = conn.cursor()
     
+    # Compute per-product aggregates from the raw events table
     cur.execute("""
     SELECT product_id, product_name, COUNT(*) as total_sales, SUM(price) as total_revenue
     FROM events
@@ -35,6 +37,7 @@ def compute_and_save_aggregates(conn):
     
     rows = cur.fetchall()
     
+    # Upsert the computed aggregates
     for product_id, product_name, total_sales, total_revenue in rows:
         cur.execute("""
         INSERT INTO aggregates (product_id, product_name, total_sales, total_revenue)
@@ -48,15 +51,24 @@ def compute_and_save_aggregates(conn):
     logger.info(f"Aggregates updated for {len(rows)} products.")
 
 def main():
+    parser = argparse.ArgumentParser(description="Update aggregates from events table")
+    parser.add_argument("--once", action="store_true", help="Run a single update and exit")
+    parser.add_argument("--interval", type=int, default=AGGREGATION_INTERVAL, help="Seconds between updates in loop mode")
+    args = parser.parse_args()
+
     # Allow concurrent reading while consumer writes
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     create_aggregates_table(conn)
     
     try:
+        if args.once:
+            update_aggregates(conn)
+            return
+        
         while True:
-            compute_and_save_aggregates(conn)
-            time.sleep(AGGREGATION_INTERVAL)
+            update_aggregates(conn)
+            time.sleep(args.interval)
     except KeyboardInterrupt:
         logger.info("Stopping aggregate updater...")
     finally:
