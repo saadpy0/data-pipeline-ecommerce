@@ -2,16 +2,12 @@ import sqlite3
 import time
 import logging
 import argparse
+from utils.logger import get_logger
 
 DB_FILE = "ecommerce.db"
 AGGREGATION_INTERVAL = 15  # seconds
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def create_aggregates_table(conn):
     conn.execute("""
@@ -46,6 +42,7 @@ def update_aggregates(conn):
             total_sales=excluded.total_sales,
             total_revenue=excluded.total_revenue
         """, (product_id, product_name, total_sales, total_revenue))
+        logger.info(f"Product {product_name} (ID: {product_id}) -> Sales: {total_sales}, Revenue: {total_revenue}")
     
     conn.commit()
     logger.info(f"Aggregates updated for {len(rows)} products.")
