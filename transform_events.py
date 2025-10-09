@@ -27,7 +27,8 @@ def update_aggregates(conn):
     # Compute per-product aggregates from the raw events table
     cur.execute("""
     SELECT product_id, product_name, COUNT(*) as total_sales, SUM(price) as total_revenue
-    FROM events
+    FROM events 
+    WHERE event_type = 'purchase'
     GROUP BY product_id, product_name
     """)
     
