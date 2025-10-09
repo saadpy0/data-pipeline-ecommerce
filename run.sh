@@ -7,6 +7,7 @@ source venv/bin/activate
 pkill -f "python consumer/consumer.py"
 pkill -f "python event_generator.py"
 pkill -f "python transform_events.py"
+pkill -f "python aggregate_event_counts.py"
 
 echo "Starting pipeline components..."
 
@@ -28,8 +29,13 @@ python transform_events.py &
 TRANSFORMER_PID=$!
 echo "Started transformer (PID: $TRANSFORMER_PID)"
 
+# Start event count aggregator
+python aggregate_event_counts.py &
+AGGREGATOR_PID=$!
+echo "Started event count aggregator (PID: $AGGREGATOR_PID)"
+
 echo "All components started. Press Ctrl+C to stop all processes."
 
 # Wait for Ctrl+C
-trap "kill $CONSUMER_PID $GENERATOR_PID $TRANSFORMER_PID; exit" SIGINT
+trap "kill $CONSUMER_PID $GENERATOR_PID $TRANSFORMER_PID $AGGREGATOR_PID; exit" SIGINT
 wait
