@@ -1,0 +1,22 @@
+<html>
+<head>
+    <title>E-commerce Dashboard</title>
+</head>
+<body>
+    <h1>Live E-commerce Dashboard</h1>
+    <table border="1">
+        <tr>
+            <th>Product</th>
+            <th>Total Sales</th>
+            <th>Total Revenue</th>
+        </tr>
+        {% for row in data %}
+        <tr>
+            <td>{{ row.product_name }}</td>
+            <td>{{ row.total_sales }}</td>
+            <td>{{ row.total_revenue }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
