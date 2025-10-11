@@ -1,9 +1,31 @@
 <html>
 <head>
     <title>E-commerce Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            width: 800px;
+            margin: 20px auto;
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px 15px;
+        }
+        h1 {
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <h1>Live E-commerce Dashboard</h1>
+    
+    <div class="chart-container">
+        <canvas id="salesChart" width="800" height="400"></canvas>
+    </div>
+
     <table border="1">
         <tr>
             <th>Product</th>
@@ -14,12 +36,71 @@
         <tr>
             <td>{{ row.product_name }}</td>
             <td>{{ row.total_sales }}</td>
-            <td>{{ row.total_revenue }}</td>
+            <td>${{ row.total_revenue|floatformat:2 }}</td>
         </tr>
         {% endfor %}
     </table>
 
     <script>
+        // Chart setup
+        const labels = [{% for row in data %}'{{ row.product_name }}',{% endfor %}];
+        const salesData = [{% for row in data %}{{ row.total_sales }},{% endfor %}];
+        const revenueData = [{% for row in data %}{{ row.total_revenue }},{% endfor %}];
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Sales',
+                        data: salesData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Total Revenue ($)',
+                        data: revenueData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Total Sales'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Revenue ($)'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sales and Revenue by Product'
+                    }
+                }
+            }
+        });
+
+        // Auto-refresh
         setInterval(() => {
             window.location.reload();
         }, 10000); // refresh every 10 seconds
